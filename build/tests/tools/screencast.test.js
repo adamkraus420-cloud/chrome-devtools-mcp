@@ -74,6 +74,7 @@ function createScreencastMocks() {
     const mockRecording = sinon.createStubInstance(CdpScreenRecording);
     const mockRecorder = sinon.createStubInstance(ScreenRecorder);
     page.pptrPage.record.resolves(mockRecording);
+    page.pptrPage.evaluate.resolves({ width: 800, height: 600, dpr: 2 });
     page.pptrPage.screencast.resolves(mockRecorder);
     page.getScreenRecorder.returns(null);
     return { page, context, response, mockRecording, mockRecorder, args };
@@ -92,6 +93,8 @@ describe('screencast', () => {
             sinon.assert.calledOnceWithExactly(page.pptrPage.record, {
                 path: filePath,
                 fps: undefined,
+                maxWidth: 1600,
+                maxHeight: 1200,
             });
             sinon.assert.notCalled(page.pptrPage.screencast);
             sinon.assert.calledOnceWithExactly(page.setScreenRecorder, {
@@ -111,6 +114,8 @@ describe('screencast', () => {
             sinon.assert.calledOnceWithExactly(page.pptrPage.record, {
                 path: expectedPath,
                 fps: undefined,
+                maxWidth: 1600,
+                maxHeight: 1200,
             });
             sinon.assert.calledOnceWithExactly(page.setScreenRecorder, {
                 recorder: mockRecording,
@@ -137,6 +142,8 @@ describe('screencast', () => {
             sinon.assert.calledOnceWithExactly(page.pptrPage.record, {
                 path: filePath,
                 fps: 10,
+                maxWidth: 1600,
+                maxHeight: 1200,
             });
         });
         it('passes screencast fps from --experimental-screencast-fps to puppeteer', async () => {
@@ -147,6 +154,8 @@ describe('screencast', () => {
             sinon.assert.calledOnceWithExactly(page.pptrPage.record, {
                 path: filePath,
                 fps: 10,
+                maxWidth: 1600,
+                maxHeight: 1200,
             });
         });
         it('provides a clear error when Chrome does not support recording', async () => {

@@ -62,7 +62,7 @@ export const executeThirdPartyDeveloperTool = definePageTool(() => ({
                 throw new Error(`Failed to parse params as JSON: ${errorMessage}`);
             }
         }
-        const toolGroups = request.page.getThirdPartyDeveloperTools();
+        const toolGroups = await request.page.discoverThirdPartyDeveloperTools();
         let tool;
         if (toolGroups) {
             for (const group of toolGroups) {

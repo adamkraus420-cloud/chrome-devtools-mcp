@@ -74,6 +74,21 @@ describe('emulation', () => {
             it('throws when height is missing', () => {
                 assert.throws(() => viewportTransform('800'));
             });
+            it('throws when viewport has unknown tags', () => {
+                assert.throws(() => viewportTransform('1280x720,mobile,bogus'));
+            });
+            it('throws when viewport has empty tags', () => {
+                assert.throws(() => viewportTransform('1280x720,'));
+            });
+            it('throws when viewport has extra dimension parts', () => {
+                assert.throws(() => viewportTransform('1280x720x2x9'));
+            });
+            it('throws when dimension parts are empty or contain whitespace', () => {
+                assert.throws(() => viewportTransform('800x'));
+                assert.throws(() => viewportTransform('x600'));
+                assert.throws(() => viewportTransform(' 1280 x 720'));
+                assert.throws(() => viewportTransform('1280x720, mobile'));
+            });
         });
         describe('geolocationTransform', () => {
             it('returns undefined for undefined input', () => {
@@ -96,6 +111,17 @@ describe('emulation', () => {
             });
             it('throws when longitude is missing', () => {
                 assert.throws(() => geolocationTransform('48.1'));
+            });
+            it('throws when geolocation has empty parts or trailing commas', () => {
+                assert.throws(() => geolocationTransform('37.77,'));
+                assert.throws(() => geolocationTransform(','));
+            });
+            it('throws when geolocation has extra parts', () => {
+                assert.throws(() => geolocationTransform('37.77,-122.42,9'));
+            });
+            it('throws on hex coordinates or surrounding whitespace', () => {
+                assert.throws(() => geolocationTransform('0x10,0x20'));
+                assert.throws(() => geolocationTransform(' 37.77 , -122.42 '));
             });
         });
     });

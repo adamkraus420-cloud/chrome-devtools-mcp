@@ -32,6 +32,20 @@ function getLegacyExtension(filePath) {
     }
     return matchedExtension ?? '.mp4';
 }
+/**
+ * Returns the size of the page viewport in device pixels.
+ */
+async function getPagePixelSize(pptrPage) {
+    const { width, height, dpr } = await pptrPage.evaluate(() => ({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        dpr: window.devicePixelRatio,
+    }));
+    return {
+        maxWidth: Math.max(1, Math.round(width * dpr)),
+        maxHeight: Math.max(1, Math.round(height * dpr)),
+    };
+}
 export const startScreencast = definePageTool((args) => ({
     name: 'screencast_start',
     description: `Starts recording a screencast (video) of the target page.`,
@@ -76,9 +90,14 @@ export const startScreencast = definePageTool((args) => ({
                 });
             }
             else {
+                // Without explicit limits Chrome downscales frames to a small default
+                // size. Record at the actual device pixel size of the page instead.
+                const { maxWidth, maxHeight } = await getPagePixelSize(page.pptrPage);
                 recorder = await page.pptrPage.record({
                     path: resolvedPath,
                     fps: args?.screencastFps,
+                    maxWidth,
+                    maxHeight,
                 });
             }
         }

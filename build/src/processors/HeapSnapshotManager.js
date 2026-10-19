@@ -7,6 +7,18 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import { DevTools } from '../third_party/index.js';
 import { createIdGenerator } from '../utils/id.js';
+function toClassDiff(index, rawDiff) {
+    return {
+        index,
+        className: rawDiff.name,
+        addedCount: rawDiff.addedCount,
+        removedCount: rawDiff.removedCount,
+        countDelta: rawDiff.countDelta,
+        addedSize: rawDiff.addedSize,
+        removedSize: rawDiff.removedSize,
+        sizeDelta: rawDiff.sizeDelta,
+    };
+}
 export class HeapSnapshot {
     proxy;
     worker;
@@ -179,16 +191,7 @@ export class HeapSnapshotManager {
             sizeDelta: 0,
         };
         for (const [index, rawDiff] of rawDiffs.entries()) {
-            classDiffs.push({
-                index,
-                className: rawDiff.name,
-                addedCount: rawDiff.addedCount,
-                removedCount: rawDiff.removedCount,
-                countDelta: rawDiff.countDelta,
-                addedSize: rawDiff.addedSize,
-                removedSize: rawDiff.removedSize,
-                sizeDelta: rawDiff.sizeDelta,
-            });
+            classDiffs.push(toClassDiff(index, rawDiff));
             totals.addedCount += rawDiff.addedCount;
             totals.removedCount += rawDiff.removedCount;
             totals.countDelta += rawDiff.countDelta;
@@ -204,20 +207,21 @@ export class HeapSnapshotManager {
         if (!rawDiff) {
             throw new Error(`Invalid classIndex: ${classIndex}. Total classes with changes: ${classDiffs.length}`);
         }
-        return {
-            index: classIndex,
-            className: rawDiff.name,
-            addedCount: rawDiff.addedCount,
-            removedCount: rawDiff.removedCount,
-            countDelta: rawDiff.countDelta,
-            addedSize: rawDiff.addedSize,
-            removedSize: rawDiff.removedSize,
-            sizeDelta: rawDiff.sizeDelta,
-            addedIds: rawDiff.addedIds ?? [],
-            addedSelfSizes: rawDiff.addedSelfSizes ?? [],
-            deletedIds: rawDiff.deletedIds ?? [],
-            deletedSelfSizes: rawDiff.deletedSelfSizes ?? [],
-        };
+        const objects = [];
+        const addedIds = rawDiff.addedIds ?? [];
+        const addedSelfSizes = rawDiff.addedSelfSizes ?? [];
+        for (const [i, id] of addedIds.entries()) {
+            objects.push({ id, selfSize: addedSelfSizes[i], change: 'added' });
+        }
+        const deletedIds = rawDiff.deletedIds ?? [];
+        const deletedSelfSizes = rawDiff.deletedSelfSizes ?? [];
+        for (const [i, id] of deletedIds.entries()) {
+            objects.push({ id, selfSize: deletedSelfSizes[i], change: 'deleted' });
+        }
+        // Largest objects first so that the first page of paginated output shows
+        // the most significant changes.
+        objects.sort((a, b) => b.selfSize - a.selfSize);
+        return { classDiff: toClassDiff(classIndex, rawDiff), objects };
     }
     async #getSortedRawClassDiffs(baseFilePath, currentFilePath) {
         const [baseSnapshot, currentSnapshot] = await Promise.all([

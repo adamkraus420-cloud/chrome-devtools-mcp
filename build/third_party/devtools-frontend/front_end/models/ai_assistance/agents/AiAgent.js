@@ -4,8 +4,9 @@
 import * as Host from '../../../core/host/host.js';
 import * as Root from '../../../core/root/root.js';
 import * as SDK from '../../../core/sdk/sdk.js';
-import { debugLog, isStructuredLogEnabled } from '../debug.js';
+import * as AiUtils from '../../ai-utils/ai-utils.js';
 import { dispatchAiAssistanceDoneEvent } from '../DOMHelpers.js';
+const { debugLog, isStructuredLogEnabled } = AiUtils.Debug;
 const MAX_SUGGESTION_LENGTH = 200;
 export const MAX_STEPS = 20;
 /**
@@ -500,14 +501,19 @@ export class AiAgent {
                         description: result.description,
                         context: result.context,
                         widgets: result.widgets,
+                        toolName: functionCall.name,
                     };
                     return { type: 'contextChanged' };
                 }
                 functionResponses.push({
                     functionResponse: {
                         name: functionCall.name,
-                        // Widgets are not sent back to the LLM
-                        response: { ...result, widgets: undefined },
+                        // Widgets and UI telemetry metadata are not sent back to the LLM.
+                        response: {
+                            ...result,
+                            widgets: undefined,
+                            ...('loadedSkills' in result ? { loadedSkills: undefined } : {}),
+                        },
                     },
                 });
             }
@@ -682,6 +688,7 @@ export class AiAgent {
                 widgets: result.widgets,
                 canceled: false,
                 toolName: name,
+                ...(result.loadedSkills ? { loadedSkills: result.loadedSkills } : {}),
             };
         }
         if ('error' in result) {

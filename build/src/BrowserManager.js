@@ -61,7 +61,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Mutex, puppeteer } from './third_party/index.js';
-import { logger, puppeteerLogger } from './utils/logger.js';
+import { logger, puppeteerLogger, redactConnectOptionsForLogging, } from './utils/logger.js';
 import { isAllowedUrl } from './utils/url.js';
 /**
  * Identity token for an in-flight connect/launch attempt. Instances carry no
@@ -384,7 +384,7 @@ export class BrowserManager {
         else {
             throw new Error('Either browserURL, wsEndpoint, channel or userDataDir must be provided');
         }
-        logger?.('Connecting Puppeteer to ', JSON.stringify(connectOptions));
+        logger?.('Connecting Puppeteer to ', JSON.stringify(redactConnectOptionsForLogging(connectOptions)));
         try {
             const connected = await puppeteer.connect(connectOptions);
             logger?.('Connected Puppeteer');

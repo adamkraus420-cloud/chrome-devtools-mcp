@@ -207,14 +207,27 @@ export class SymbolizedError {
         // For Runtime.exceptionThrown with a present exception object, `details.text` will be "Uncaught" and
         // we have to manually parse out the error text from the exception description.
         // In the case of Runtime.getExceptionDetails, `details.text` has the Error.message.
-        if (details.text === 'Uncaught' && details.exception) {
-            return ('Uncaught ' +
+        // Unhandled promise rejections work the same way, with
+        // "Uncaught (in promise)" as `details.text` and the rejection reason as
+        // the exception.
+        if ((details.text === 'Uncaught' ||
+            details.text === 'Uncaught (in promise)') &&
+            details.exception) {
+            return (details.text +
+                ' ' +
                 SymbolizedError.#getMessageFromException(details.exception));
         }
         return details.text;
     }
     static #getMessageFromException(error) {
-        const messageWithRest = error.description?.split('\n    at ', 2) ?? [];
+        if (error.description === undefined) {
+            // Primitive values, e.g. `Promise.reject('reason')`, have no description.
+            if (error.unserializableValue !== undefined) {
+                return error.unserializableValue;
+            }
+            return error.value === undefined ? '' : String(error.value);
+        }
+        const messageWithRest = error.description.split('\n    at ', 2);
         return messageWithRest[0] ?? '';
     }
     static async #getExceptionDetails(devTools, error, targetId) {

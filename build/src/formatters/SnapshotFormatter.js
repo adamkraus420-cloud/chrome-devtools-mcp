@@ -29,7 +29,7 @@ Get a verbose snapshot to include all elements if you are interested in the sele
         const attributes = this.#getAttributes(node);
         const line = ' '.repeat(depth * 2) +
             attributes.join(' ') +
-            (node.id === this.#snapshot.selectedElementUid
+            (node.id && node.id === this.#snapshot.selectedElementUid
                 ? ' [selected in the DevTools Elements panel]'
                 : '') +
             '\n';
@@ -66,7 +66,10 @@ Get a verbose snapshot to include all elements if you are interested in the sele
         return result;
     }
     #getAttributes(serializedAXNodeRoot) {
-        const attributes = [`uid=${serializedAXNodeRoot.id}`];
+        const attributes = [];
+        if (serializedAXNodeRoot.id) {
+            attributes.push(`uid=${serializedAXNodeRoot.id}`);
+        }
         if (serializedAXNodeRoot.role &&
             serializedAXNodeRoot.role !== 'StaticText') {
             attributes.push(serializedAXNodeRoot.role === 'none'
@@ -105,7 +108,9 @@ Get a verbose snapshot to include all elements if you are interested in the sele
     #getAttributesMap(node, excludeSpecial = false) {
         const result = {};
         if (!excludeSpecial) {
-            result.id = node.id;
+            if (node.id) {
+                result.id = node.id;
+            }
             if (node.role) {
                 result.role = node.role;
             }

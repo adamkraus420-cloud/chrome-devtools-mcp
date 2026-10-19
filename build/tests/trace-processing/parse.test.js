@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import '../setupDevTools.js';
 import assert from 'node:assert';
 import { afterEach, describe, it } from 'node:test';
 import sinon from 'sinon';

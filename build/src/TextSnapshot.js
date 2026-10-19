@@ -56,6 +56,14 @@ var __disposeResources = (this && this.__disposeResources) || (function (Suppres
     return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
 });
 import { logger } from './utils/logger.js';
+/**
+ * InlineTextBox nodes are layout line fragments of a StaticText node. They
+ * repeat the parent text, have no backendNodeId and cannot be targeted by
+ * tools. Puppeteer only serializes them for non-interesting-only snapshots.
+ */
+function isLayoutOnlyNode(node) {
+    return node.role === 'InlineTextBox';
+}
 export class TextSnapshot {
     static nextSnapshotId = 1;
     static resetCounter() {
@@ -96,25 +104,29 @@ export class TextSnapshot {
             let id = '';
             // @ts-expect-error untyped backendNodeId.
             const backendNodeId = node.backendNodeId;
-            // @ts-expect-error untyped loaderId.
-            const uniqueBackendId = `${node.loaderId}_${backendNodeId}`;
-            const existingMcpId = uniqueBackendNodeIdToMcpId.get(uniqueBackendId);
-            if (existingMcpId !== undefined) {
-                // Re-use MCP exposed ID if the uniqueId is the same.
-                id = existingMcpId;
+            if (backendNodeId !== undefined) {
+                // @ts-expect-error untyped loaderId.
+                const uniqueBackendId = `${node.loaderId}_${backendNodeId}`;
+                const existingMcpId = uniqueBackendNodeIdToMcpId.get(uniqueBackendId);
+                if (existingMcpId !== undefined) {
+                    // Re-use MCP exposed ID if the uniqueId is the same.
+                    id = existingMcpId;
+                }
+                else {
+                    // Only generate a new ID if we have not seen the node before.
+                    id = `${snapshotId}_${idCounter++}`;
+                    uniqueBackendNodeIdToMcpId.set(uniqueBackendId, id);
+                }
+                seenUniqueIds.add(uniqueBackendId);
+                seenBackendNodeIds.add(backendNodeId);
             }
-            else {
-                // Only generate a new ID if we have not seen the node before.
-                id = `${snapshotId}_${idCounter++}`;
-                uniqueBackendNodeIdToMcpId.set(uniqueBackendId, id);
-            }
-            seenUniqueIds.add(uniqueBackendId);
-            seenBackendNodeIds.add(backendNodeId);
             const nodeWithId = {
                 ...node,
                 id,
                 children: node.children
-                    ? node.children.map(child => assignIds(child))
+                    ? node.children
+                        .filter(child => !isLayoutOnlyNode(child))
+                        .map(child => assignIds(child))
                     : [],
             };
             // The AXNode for an option doesn't contain its `value`.
@@ -125,7 +137,9 @@ export class TextSnapshot {
                     nodeWithId.value = optionText.toString();
                 }
             }
-            idToNode.set(nodeWithId.id, nodeWithId);
+            if (id) {
+                idToNode.set(nodeWithId.id, nodeWithId);
+            }
             return nodeWithId;
         };
         const rootNodeWithId = assignIds(rootNode);

@@ -1,6 +1,6 @@
 ---
 name: debug-in-devtools
-description: Use this skill to connect to the Chrome DevTools UI for interactive debugging, UI/UX review, Q&A, showing elements/network requests/panels to the user, inspecting the user's current DevTools selection, and addressing or polling for DevTools UI comment threads.
+description: Use this skill to connect to the Chrome DevTools UI for interactive debugging, UI/UX review, Q&A, showing elements/network requests/panels to the user, inspecting the user's current DevTools selection, and addressing or waiting for DevTools UI comment threads.
 ---
 
 # Debug, Review, and Q&A in DevTools
@@ -48,36 +48,47 @@ When the user selects an element or network request in the open DevTools window 
 
 ### 4. Handling DevTools Comment Threads (Two Invocation Modes)
 
+`get_devtools_comments` accepts an optional `timeout` parameter (milliseconds, `0`–`30000`, default `10000`):
+
+- If open threads exist, the tool returns them immediately.
+- If no thread is pending, the tool waits on the server for the user to send a comment. It returns as soon as a comment arrives or when `timeout` elapses.
+- On timeout, the response contains `Waited <N>ms for new DevTools comments. Call get_devtools_comments again to keep waiting.`
+- With `timeout: 0`, the tool returns immediately. If no thread is pending, the response is `No open DevTools comments found.`
+- Other tool calls continue to run while `get_devtools_comments` waits. A wait does not block the MCP server.
+- The tool returns each thread only once. Resolve each returned thread before you wait again. Do not expect the same thread in the next response.
+
 Choose the appropriate mode based on the user's request:
 
 > **CRITICAL RULES**:
 >
-> - **Do NOT poll in Explicit / One-Shot Mode or when asked not to**: If the user says they already added comments in DevTools (e.g., _"I added comments in DevTools, please address them"_) or asks not to poll, fetch and resolve the comments **once** and **end your turn immediately**. Do **not** enter the `sleep 10` polling loop.
-> - **Offload polling to a background sub-agent in Interactive Watch / Review Mode**: When waiting for the user to leave comments, **always run the `sleep 10` -> `get_devtools_comments` polling loop in a background sub-agent** if sub-agent tools are available, so the main agent thread is never blocked.
-> - **Do NOT call `get_devtools_comments` back-to-back without a delay**: When polling, always pause 10 seconds between calls so you do not flood the MCP server or exhaust tool call limits.
+> - **Do NOT wait in Explicit / One-Shot Mode or when asked not to**: If the user says they already added comments (e.g., _"I added comments in DevTools, please address them"_) or asks not to wait, call `get_devtools_comments` **once** with `timeout: 0`. Resolve the comments and **end your turn immediately**.
+> - **Do NOT add your own delays**: Do not use `sleep`, timer tools, or shell commands between `get_devtools_comments` calls. The `timeout` parameter does the wait on the server.
+> - **Use the maximum wait in Interactive Watch / Review Mode**: Pass `timeout: 30000` to reduce the number of tool calls.
 
 #### Mode A: Explicit / One-Shot Mode (Comments Already Added)
 
-Use this mode when the user indicates comments have already been added in DevTools and asks you to address or check them (or when the user asks not to poll):
+Use this mode when the user indicates comments have already been added in DevTools and asks you to address or check them (or when the user asks not to wait):
 
-1. Call `get_devtools_comments` (`pageId`) **once**.
+1. Call `get_devtools_comments` (`pageId`, `timeout: 0`) **once**.
 2. For each returned thread (`### Thread: <id>`), inspect its context, answer the question or apply the requested fix, and call `resolve_devtools_comment` (see **Processing & Resolving Threads** below).
-3. **End your turn immediately** after resolving the threads and summarizing your changes/answers in chat. Do **not** start a polling loop.
+3. **End your turn immediately** after resolving the threads and summarizing your changes/answers in chat. Do **not** start a wait loop.
 
 #### Mode B: Interactive Watch / Review Mode (Waiting for User Feedback)
 
 Use this mode when the user asks to open DevTools and wait while they interactively debug, review the UI, or leave comment threads:
 
-1. **Delegate polling to a background sub-agent (preferred)**:
-   - If sub-agent tools are available, spawn a background sub-agent to run the wait-then-poll loop so the main conversation thread stays responsive.
-   - Instruct the sub-agent to:
-     1. Call `get_devtools_comments` (`pageId`) immediately.
-     2. While `"No open DevTools comments found."` is returned, wait **10 seconds** (`sleep 10` or timer tool) and call `get_devtools_comments` (`pageId`) again (or immediately if a `"DevTools comment threads updated"` MCP notification arrives), for up to **12 consecutive empty polls (~2 minutes)**.
-     3. As soon as open threads are found (or after 12 empty polls), return the result to the main agent (or process and resolve them directly if the sub-agent has full workspace and MCP tools).
-2. **Fallback inline polling (only if sub-agent tools are unavailable)**:
-   - Run the initial `get_devtools_comments` (`pageId`) check and the `sleep 10` -> `get_devtools_comments` (`pageId`) loop (up to 12 consecutive empty polls / ~2 minutes) in the main agent without ending your turn early.
-3. **Resume watching after resolution**:
-   - In Interactive Watch / Review Mode, after resolving all currently open comment threads, reset the empty-poll counter and resume polling (via the sub-agent, or inline if sub-agents are unavailable) to pick up follow-up comments until 12 consecutive empty polls elapse or the user asks to stop.
+1. **Wait for comments**:
+   - Call `get_devtools_comments` (`pageId`, `timeout: 30000`).
+   - If the response contains open threads, process and resolve them (see **Processing & Resolving Threads** below).
+   - If the response reports a timeout (`Waited <N>ms ...`), call `get_devtools_comments` (`pageId`, `timeout: 30000`) again immediately.
+   - Stop after **4 consecutive empty waits (~2 minutes)**, or when the user asks to stop. Tell the user that you stopped waiting and how to resume.
+2. **Resume watching after resolution**:
+   - After you resolve all returned threads, reset the empty-wait counter.
+   - Call `get_devtools_comments` (`pageId`, `timeout: 30000`) again to receive follow-up comments.
+3. **Optional background sub-agent**:
+   - Each wait blocks the current agent turn for up to 30 seconds.
+   - If the main conversation must stay responsive and sub-agent tools are available, run the wait loop in a background sub-agent.
+   - Give the sub-agent the same instructions as steps 1 and 2. Tell it to return new threads to the main agent, or to resolve them directly if it has workspace and MCP tools.
 
 #### Processing & Resolving Threads (Reply vs. Resolve Guidance)
 

@@ -62,12 +62,11 @@ import path from 'node:path';
 import { afterEach, describe, it } from 'node:test';
 import { pathToFileURL } from 'node:url';
 import sinon from 'sinon';
-import { McpContext } from '../src/McpContext.js';
 import { HeapSnapshotManager } from '../src/processors/HeapSnapshotManager.js';
 import { resolveCanonicalPath } from '../src/utils/files.js';
 import { escapeForLog } from '../src/utils/logger.js';
 import { createMockPuppeteerBrowser } from './mocks.js';
-import { createTempDir, withMcpContext } from './utils.js';
+import { createConnectedMcpContext, createTempDir, withMcpContext, } from './utils.js';
 describe('McpContext Roots', () => {
     it('should allow access to os.tmpdir() even if roots are empty', async () => {
         await withMcpContext(async (_response, context) => {
@@ -206,7 +205,7 @@ describe('McpContext path validation escaping', () => {
     async function createContext() {
         const browser = createMockPuppeteerBrowser();
         browser.targets.returns([]);
-        return await McpContext.from(browser, undefined, {
+        return await createConnectedMcpContext(browser, {
             experimentalDevToolsDebugging: false,
             performanceCrux: false,
             heapSnapshotManager: new HeapSnapshotManager(),

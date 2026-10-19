@@ -275,6 +275,7 @@ export class McpResponse {
             ...this.#heapSnapshotOptions,
             include: true,
             detailedClassDiff,
+            pagination: options,
             formatOptions: options,
         };
     }
@@ -311,9 +312,6 @@ export class McpResponse {
         return this.#listWebMcpTools;
     }
     async #handleSnapshot(context) {
-        if (this.#includePages) {
-            await context.createPagesSnapshot();
-        }
         if (!this.#snapshotParams) {
             return undefined;
         }
@@ -379,11 +377,11 @@ export class McpResponse {
         }
         return undefined;
     }
-    async #handleThirdPartyDevelopeTools() {
+    async #handleThirdPartyDeveloperTools() {
         if (this.#args.categoryExperimentalThirdParty &&
             this.#listThirdPartyDeveloperTools &&
             this.#page) {
-            return await this.#page.getToolGroups();
+            return await this.#page.discoverThirdPartyDeveloperTools();
         }
         return undefined;
     }
@@ -495,14 +493,22 @@ export class McpResponse {
         return { formatter, commentsSnapshotRegenerated };
     }
     async handle(context, dataFormat = 'default') {
-        if (this.#attachedWaitForResult?.openedPages && !this.#includePages) {
+        if (this.#includePages || this.#attachedWaitForResult?.openedPages) {
             await context.createPagesSnapshot();
+        }
+        if (this.#includePages && (!this.#page || this.#page.isClosed())) {
+            try {
+                this.#page = context.getSelectedMcpPage();
+            }
+            catch {
+                this.#page = undefined;
+            }
         }
         const [snapshot, detailedNetworkRequest, detailedConsoleMessage, thirdPartyDeveloperTools, webmcpTools, consoleMessages, networkRequests, commentsResult,] = await Promise.all([
             this.#handleSnapshot(context),
             this.#handleAttachedNetworkRequest(context),
             this.#handleAttachedConsoleMessage(),
-            this.#handleThirdPartyDevelopeTools(),
+            this.#handleThirdPartyDeveloperTools(),
             this.#handleWebMCP(),
             this.#handleConsoleList(context),
             this.#handleNetworkRequestList(context),
@@ -960,13 +966,23 @@ Call ${handleDialog(this.#args).name} to handle it before continuing.`);
             const detailedClassDiff = this.#heapSnapshotOptions.detailedClassDiff;
             if (detailedClassDiff) {
                 response.push('### Heap Snapshot Detailed Diff');
+                const { classDiff, objects } = detailedClassDiff;
+                const paginationData = this.#dataWithPagination(objects, this.#heapSnapshotOptions.pagination);
+                structuredContent.pagination = paginationData.pagination;
                 response.push(compactEncode
                     ? compactEncode({
-                        ...detailedClassDiff,
-                        className: formatName(detailedClassDiff.className, formatOptions),
+                        ...classDiff,
+                        className: formatName(classDiff.className, formatOptions),
                     })
-                    : HeapSnapshotFormatter.formatDiffDetails(detailedClassDiff, formatOptions));
-                structuredContent.heapSnapshotDetailedClassDiff = detailedClassDiff;
+                    : HeapSnapshotFormatter.formatDetailedClassDiffHeader(classDiff, formatOptions));
+                response.push(...paginationData.info);
+                response.push(compactEncode
+                    ? compactEncode(paginationData.items)
+                    : HeapSnapshotFormatter.formatDetailedClassDiffObjects(paginationData.items));
+                structuredContent.heapSnapshotDetailedClassDiff = {
+                    classDiff,
+                    objects: paginationData.items,
+                };
             }
             const duplicateStrings = this.#heapSnapshotOptions.duplicateStrings;
             if (duplicateStrings) {
@@ -1043,18 +1059,23 @@ Call ${handleDialog(this.#args).name} to handle it before continuing.`);
             }
         }
         const thirdPartyDeveloperTools = data.thirdPartyDeveloperTools;
-        if (thirdPartyDeveloperTools?.length) {
+        if (this.#listThirdPartyDeveloperTools && thirdPartyDeveloperTools) {
             structuredContent.thirdPartyDeveloperTools = thirdPartyDeveloperTools;
             response.push('## Third-party developer tools');
-            for (const toolGroup of thirdPartyDeveloperTools) {
-                response.push(`${toolGroup.name}: ${toolGroup.description}`);
-                response.push('Available tools:');
-                const toolDefinitionsMessage = toolGroup.tools
-                    .map(tool => {
-                    return `name="${tool.name}", description="${tool.description}", inputSchema=${JSON.stringify(tool.inputSchema)}`;
-                })
-                    .join('\n');
-                response.push(toolDefinitionsMessage);
+            if (thirdPartyDeveloperTools.length === 0) {
+                response.push('No third-party developer tools available.');
+            }
+            else {
+                for (const toolGroup of thirdPartyDeveloperTools) {
+                    response.push(`${toolGroup.name}: ${toolGroup.description}`);
+                    response.push('Available tools:');
+                    const toolDefinitionsMessage = toolGroup.tools
+                        .map(tool => {
+                        return `name="${tool.name}", description="${tool.description}", inputSchema=${JSON.stringify(tool.inputSchema)}`;
+                    })
+                        .join('\n');
+                    response.push(toolDefinitionsMessage);
+                }
             }
         }
         if (this.#listWebMcpTools && data.webmcpTools) {

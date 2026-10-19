@@ -7,8 +7,8 @@
 import process from 'node:process';
 import { startDaemon, stopDaemon, sendCommand, handleResponse, verifyDaemonVersion, } from '../daemon/client.js';
 import { isDaemonRunning, serializeArgs, assertValidSessionId, } from '../daemon/utils.js';
-import { logDisclaimers } from '../index.js';
-import { hideBin, yargs } from '../third_party/index.js';
+import { logDisclaimers } from '../utils/disclaimers.js';
+import { hideBin, yargs } from '../third_party/cli.js';
 import { checkForUpdates } from '../utils/check-for-updates.js';
 import { VERSION } from '../version.js';
 import { buildCommand, getCommandArgSpec, shieldLiteralArgs, } from '../config/cli-commands.js';
@@ -170,10 +170,11 @@ for (const [commandName, commandDef] of Object.entries(commands)) {
     }, async (argv) => {
         const sessionId = argv.sessionId;
         try {
-            const versionWarningPromise = isDaemonRunning(sessionId)
+            const daemonRunning = isDaemonRunning(sessionId);
+            const versionWarningPromise = daemonRunning
                 ? verifyDaemonVersion(sessionId, VERSION)
                 : Promise.resolve(undefined);
-            if (!isDaemonRunning(sessionId)) {
+            if (!daemonRunning) {
                 await start(serializeArgs(mcpOptions, argv), sessionId);
             }
             const commandArgs = {};

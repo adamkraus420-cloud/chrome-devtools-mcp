@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 var _a;
-import { yargs, hideBin } from '../third_party/index.js';
+import { yargs, hideBin } from '../third_party/cli.js';
 import { readFileSync } from 'node:fs';
 import { mcpOptions, getMcpOptionsForViaCli, CLI_EXAMPLES, CONFLICTING_ARGS, IMPLICATIONS, DEFAULT_FILESYSTEM_ROOT, isReloadableOption, withoutDefaults, } from './mcp-options.js';
 import { getErrorMessage } from '../utils/errorHandling.js';

@@ -170,6 +170,13 @@ async function saveScreenshot(options) {
     link.href = blobUrl;
     link.click();
 }
+async function copyScreenshot(options) {
+    const response = await fetch('data:image/png;base64,' + options.base64Png);
+    const blob = await response.blob();
+    await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob }),
+    ]);
+}
 let cssEvaluationElement = null;
 const HOST_RUNTIME$2 = {
     createWorker(url) {
@@ -192,6 +199,7 @@ const HOST_RUNTIME$2 = {
         return window.devicePixelRatio;
     },
     saveScreenshot,
+    copyScreenshot,
     revokeLastScreenshotUrl,
     async loadTextFile(url) {
         const response = await fetch(url);
@@ -348,6 +356,7 @@ const HOST_RUNTIME$1 = {
         return 1;
     },
     async saveScreenshot(_options) { },
+    async copyScreenshot(_options) { },
     revokeLastScreenshotUrl() { },
     async loadTextFile(url) {
         return await Fs.promises.readFile(Url.fileURLToPath(url), 'utf-8');

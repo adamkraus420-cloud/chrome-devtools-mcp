@@ -367,6 +367,39 @@ describe('NetworkFormatter', () => {
             const jsonOrder = (json.redirectChain ?? []).map(entry => entry.url);
             assert.deepStrictEqual(textOrder, jsonOrder, `redirect chain order differs between text and JSON`);
         });
+        it('lists only earlier hops in the redirect chain of each hop', async () => {
+            // Puppeteer gives every hop of a redirect the same chain array.
+            const chain = [];
+            const first = getMockRequest({
+                url: 'http://example.com/first',
+                redirectChain: chain,
+            });
+            const second = getMockRequest({
+                url: 'http://example.com/second',
+                redirectChain: chain,
+            });
+            const final = getMockRequest({
+                url: 'http://example.com/final',
+                redirectChain: chain,
+            });
+            chain.push(first, second);
+            const chainOf = async (request) => {
+                const formatter = await NetworkFormatter.from(request, {
+                    requestId: 1,
+                    saveFile: async () => ({ filename: '' }),
+                    redactNetworkHeaders: false,
+                });
+                return (formatter.toJSONDetailed().redirectChain ?? []).map(entry => entry.url);
+            };
+            assert.deepStrictEqual(await chainOf(first), []);
+            assert.deepStrictEqual(await chainOf(second), [
+                'http://example.com/first',
+            ]);
+            assert.deepStrictEqual(await chainOf(final), [
+                'http://example.com/second',
+                'http://example.com/first',
+            ]);
+        });
         it('shows saved to file message in toStringDetailed', async () => {
             const env_3 = { stack: [], error: void 0, hasError: false };
             try {

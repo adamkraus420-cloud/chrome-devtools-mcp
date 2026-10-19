@@ -33,6 +33,21 @@ describe('snapshotFormatter', () => {
             children: [{ id: '1_2', role: 'StaticText', name: 'Privacy Policy' }],
         });
     });
+    it('omits uid= when node id is empty', () => {
+        const node = createNode('1_1', 'paragraph', 'alpha', [
+            createNode('', 'InlineTextBox', 'alpha'),
+        ]);
+        const formatter = new SnapshotFormatter({ root: node });
+        assert.strictEqual(formatter.toString(), `uid=1_1 paragraph "alpha"
+  InlineTextBox "alpha"
+`);
+        assert.deepStrictEqual(formatter.toJSON(), {
+            id: '1_1',
+            role: 'paragraph',
+            name: 'alpha',
+            children: [{ role: 'InlineTextBox', name: 'alpha' }],
+        });
+    });
     it('skips the only StaticText child duplicating the parent name', () => {
         const node = createNode('1_1', 'link', 'Privacy Policy', [
             createNode('1_2', 'StaticText', 'Privacy Policy'),
