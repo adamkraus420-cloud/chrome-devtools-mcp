@@ -1,5 +1,5 @@
 ---
-name: debug-in-devtools
+name: inspect-in-devtools
 description: Use this skill to connect to the Chrome DevTools UI for interactive debugging, UI/UX review, Q&A, showing elements/network requests/panels to the user, inspecting the user's current DevTools selection, and addressing or waiting for DevTools UI comment threads.
 ---
 

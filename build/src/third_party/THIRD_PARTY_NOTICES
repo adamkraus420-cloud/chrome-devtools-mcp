@@ -723,7 +723,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 Name: ansi-regex
 URL: chalk/ansi-regex
-Version: 6.4.0
+Version: 6.2.2
 License: MIT
 
 MIT License
@@ -741,7 +741,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 Name: strip-ansi
 URL: chalk/strip-ansi
-Version: 7.2.0
+Version: 7.1.2
 License: MIT
 
 MIT License
@@ -759,7 +759,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 Name: get-east-asian-width
 URL: sindresorhus/get-east-asian-width
-Version: 1.7.0
+Version: 1.6.0
 License: MIT
 
 MIT License
