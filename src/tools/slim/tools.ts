@@ -78,6 +78,7 @@ export const navigate = definePageTool((args: ParsedArguments) => {
       page.pptrPage.on('dialog', dialogHandler);
 
       try {
+        await page.authenticate(request.params.url);
         await page.pptrPage.goto(request.params.url, options);
         response.appendResponseLine(`Navigated to ${page.pptrPage.url()}.`);
       } finally {

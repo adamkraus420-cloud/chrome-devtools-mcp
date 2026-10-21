@@ -151,6 +151,7 @@ export const newPage = defineTool((args: ParsedArguments) => {
       );
 
       try {
+        await page.authenticate(request.params.url);
         await page.waitForEventsAfterAction(
           async () => {
             await page.pptrPage.goto(request.params.url, {
@@ -271,6 +272,7 @@ export const navigatePage = definePageTool((args: ParsedArguments) => {
                   );
                 }
                 try {
+                  await page.authenticate(request.params.url);
                   await page.pptrPage.goto(request.params.url, options);
                   response.appendResponseLine(
                     `Successfully navigated to ${request.params.url}.`,

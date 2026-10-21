@@ -482,5 +482,9 @@
   {
     "name": "max_navigation_saved_present",
     "flagType": "boolean"
+  },
+  {
+    "name": "auth_helper_present",
+    "flagType": "boolean"
   }
 ]
